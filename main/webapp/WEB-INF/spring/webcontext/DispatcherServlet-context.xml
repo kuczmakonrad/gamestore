@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc
+	http://www.springframework.org/schema/mvc/spring-mvc.xsd
+	http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context 
+	http://www.springframework.org/schema/context/spring-context.xsd
+	http://www.springframework.org/schema/tx
+	http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<mvc:annotation-driven enable-matrix-variables="true" validator="validator"/>
+	<context:annotation-config/>
+	<context:component-scan base-package="com.kk.gamestore"/>
+	<bean id="messageSource"
+		class="org.springframework.context.support.ResourceBundleMessageSource">
+		<property name="basename" value="messages"/>
+		<property name="defaultEncoding" value="ISO-8859-2"/>
+	</bean>
+	<mvc:resources mapping="/resource/**" location="/resources/"/>
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/views/"/>
+		<property name="suffix" value=".jsp"/>
+	</bean>
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+		<property name="url" value="jdbc:mysql://localhost:3306/users"/>
+		<property name="username" value="root" />
+		<property name="password" value="lolki" />
+	</bean>
+	<!-- Hibernate 4 SessionFactory Bean definition -->
+	<bean id="hibernate4AnnotatedSessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="annotatedClasses">
+			<list>
+				<value>com.kk.gamestore.domain.User</value>
+				<value>com.kk.gamestore.domain.UserRole</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect
+				</prop>
+				<prop key="hibernate.show_sql">true</prop>
+			</props>
+		</property>
+	</bean>
+	<bean id="userRepository"
+		class="com.kk.gamestore.domain.repository.impl.InMemoryUserRepository">
+		<property name="sessionFactory" ref="hibernate4AnnotatedSessionFactory" />
+	</bean>
+	<bean id="userService" class="com.kk.gamestore.service.impl.UserServiceImpl">
+		<property name="userRepository" ref="userRepository"></property>
+	</bean>
+	<tx:annotation-driven transaction-manager="transactionManager" />
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="hibernate4AnnotatedSessionFactory" />
+	</bean>
+
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<property name="maxUploadSize" value="10240000" />
+	</bean>
+	<bean
+		class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver">
+		<property name="mediaTypes">
+			<map>
+				<entry key="json" value="application/json;charset=UTF-8"/>
+				<entry key="xml" value="application/xml;charset=UTF-8"/>
+				<entry key="html" value="text/html;charset=UTF-8"/>
+			</map>
+		</property>
+		<property name="defaultViews">
+			<list>
+				<ref bean="jsonView"/>
+				<ref bean="xmlView"/>
+			</list>
+		</property>
+	</bean>
+	<bean id="jsonView" class="org.springframework.web.servlet.view.json.MappingJacksonJsonView">
+		<property name="prettyPrint" value="true"/>
+	</bean>
+	<bean id="xmlView"
+		class="org.springframework.web.servlet.view.xml.MarshallingView">
+		<constructor-arg>
+			<bean class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
+				<property name="classesToBeBound">
+					<list>
+						<value>com.kk.gamestore.domain.Game</value>
+						
+					</list>
+				</property>
+			</bean>
+		</constructor-arg>
+	</bean>
+	<bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+		<property name="validationMessageSource" ref="messageSource"/>
+	</bean>
+	<mvc:interceptors>
+		<bean class="com.kk.gamestore.interceptor.PerformanceMonitorInterceptor"/>
+		<bean class="com.kk.gamestore.interceptor.AuditingInterceptor"/>
+		<bean class="com.kk.gamestore.interceptor.PromoCodeInterceptor">
+			<property name="promoCode" value="PROMOGRY"/>
+			<property name="errorRedirect" value="invalidPromoCode"/>
+			<property name="offerRedirect" value="games"/>
+		</bean>
+	</mvc:interceptors>
+</beans>
